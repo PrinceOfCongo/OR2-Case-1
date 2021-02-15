@@ -1,0 +1,128 @@
+import pandas as pd
+import numpy as np
+import math
+import scipy.stats as stats
+import matplotlib.pyplot as plt
+from scipy.stats import poisson
+from scipy.stats import expon
+from scipy.stats import weibull_min
+from scipy.optimize import curve_fit
+from scipy.optimize import fmin
+
+def lambdaEstimator(matrix, amountHours):
+    lambdaEstimatorVector = np.zeros(amountHours)
+    
+    for i in range(0,amountHours):
+        lambdaEstimatorVector[i]=matrix[:,i].mean()
+    
+    return lambdaEstimatorVector   
+
+def QQPlot(matrixService,matrixArrivals, amountHours, months):
+    lambdaEstimatorVector= lambdaEstimator(matrixArrivals, amountHours)
+    shapeweibull = fitweibull(matrixService)[0]
+    scaleweibull = fitweibull(matrixService)[1]
+    muLN = np.mean(np.log(matrixService))
+    sigmaLN = np.std(np.log(matrixService))
+    scaleLN = np.exp(muLN)
+    
+    for i in range(0,amountHours):
+        stats.probplot(matrixArrivals[:,i], dist='poisson', sparams=(lambdaEstimatorVector[i],), plot=plt)
+        plt.title('QQ-plot Poisson distribution %d' %(i))
+        plt.show()
+   
+    for i in range(0,months):
+        stats.probplot(matrixService[:,i], dist='lognorm', sparams=(sigmaLN, scaleLN), plot=plt)
+        plt.title('QQ-plot Lognormal distribution %d' %(i))
+        plt.show()
+   
+    for i in range(0,months):
+        stats.probplot(matrixService[:,i], dist='weibull_min', sparams=(shapeweibull, scaleweibull), plot=plt)
+        plt.title('QQ-plot Weibull distribution %d' %(i))
+        plt.show()
+    
+    
+
+def chiSquaredTest(distr, data, distribution,loc, scale, ir):
+    n, bins= np.histogram(data)
+    totalN = np.sum(n)
+    probabilityVector= np.zeros(len(bins)-1)
+    
+    for i in range(0, len(bins)-2):
+        binX1= bins[i]
+        binX2= bins[i+1]
+        probabilityVector[i]= distribution.cdf(binX2,loc, scale)-distribution.cdf(binX1, loc, scale)
+   
+    zeros = np.where(probabilityVector == 0)
+    probabilityVector2 = probabilityVector[probabilityVector != 0]
+    n2=np.delete(n, zeros)
+    expectedFrequencyVector= np.zeros(len(probabilityVector2))
+    
+    for i in range(0, len(probabilityVector2)):
+        expectedFrequencyVector[i]=totalN*probabilityVector2[i]
+    
+    (TStat, pvalue)= stats.chisquare(n2, expectedFrequencyVector, 1)
+    
+    print('T-statistic + p-value for %s distribution index %d equals %f, %f' %(distr, ir, TStat, pvalue))
+       
+def expFunction(x, a, b):
+    y=a*np.exp(-b*x)
+    return y
+
+
+def makeHistogramFittedDistr(data, i):
+    hist, g= np.histogram(data, bins='auto')
+    bins=np.arange(0, len(hist), 1)
+    CentrumBins = bins+bins[1]/2
+
+    fit = curve_fit(expFunction, CentrumBins, hist)
+    yvalue = fit[0][0]*np.exp(-fit[0][1]*CentrumBins)
+    plt.bar(bins, hist, alpha=0.5, align = 'edge', width=1)
+    plt.plot(CentrumBins, yvalue, color='red')
+    plt.title('Histogram +fitted exponential distribution %d' %(i))
+    plt.show()
+
+def createExponFigures(data, months):
+    meanST = np.mean(data)
+    muST = 1/meanST
+    for i in range(0,months-1):
+        makeHistogramFittedDistr(data[:,i], i)
+        stats.probplot(data[:,i], dist= expon, sparams= muST, plot=plt)
+        plt.title('QQ-plot exponential distribution %d' %(i))
+        plt.show()
+
+def fitweibull(x):
+   def optfun(theta):
+       return -np.sum(np.log(stats.weibull_min.pdf(x, theta[0], scale = theta[1], loc = 0)))
+   logx = np.log(x)
+   shape = 1.2 / np.std(logx)
+   scale = np.exp(np.mean(logx) + (0.572 / shape))
+   print(fmin(optfun, [shape, scale], xtol = 0.01, ftol = 0.01, disp = 0))
+   return fmin(optfun, [shape, scale], xtol = 0.01, ftol = 0.01, disp = 0)    
+
+def performChiSquareTests(dataArrivals, dataService, amountHours, months):
+    lambdaEstimatorVector= lambdaEstimator(dataArrivals, amountHours)
+    meanST = np.mean(dataService)
+
+    for i in range(0, len(lambdaEstimatorVector)-1):
+        chiSquaredTest('Poisson', dataArrivals[:,i], poisson,lambdaEstimatorVector[i],0,i)
+
+    for i in range(0,months -1):
+        chiSquaredTest('Exponential', dataService[:,i], expon, 1, meanST,i)
+        
+
+
+def main():
+    
+    amountHours = 14
+    months = 12
+    matrixArrivals = np.loadtxt("C:\\Users\\Matthijs\\Downloads\\ccarrdata.txt", usecols=range(amountHours))
+    matrixST = np.loadtxt("C:\\Users\\Matthijs\\Downloads\\ccserdata.txt", usecols=range(months))
+    QQPlot(matrixST, matrixArrivals, amountHours, months)
+    createExponFigures(matrixST, months)
+    performChiSquareTests(matrixArrivals, matrixST, amountHours, months)
+    fitweibull(matrixST)
+    
+   
+
+if __name__ == "__main__":
+    main ()
