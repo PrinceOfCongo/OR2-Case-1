@@ -1,0 +1,47 @@
+import pandas as pd
+
+games1= []
+
+def readFile(data):
+   
+    listseasons = list(data)
+    listseasons.pop(0)
+    for i in range(0,18):
+    
+        for column in listseasons:
+                data= data.fillna('x')
+                match = (data[column][i])
+                if match == 'x':
+                    continue
+                else:
+                    matchstring = str(match)
+                    matchlist = matchstring.split('–',1)
+                    goalshome = matchlist[0]
+                    goalsaway = matchlist[1]
+                    if (goalshome<goalsaway):
+                        loser = data['Home \ Away'][i]
+                        winner = column
+                        differenceGoals = int(goalsaway) - int(goalshome)
+                    else :
+                        winner = data['Home \ Away'][i]
+                        loser = column
+                        differenceGoals = int(goalshome)- int(goalsaway)
+    
+    
+                    games1.append([loser, winner, differenceGoals])
+    return games1
+    
+def main ():
+    
+    xls = pd.ExcelFile('C:\\Users\\Matthijs\\Downloads\\footballfile.xlsx')
+    seasons = xls.sheet_names
+    sheet_to_df_map = {}
+    for season in seasons:
+        sheet_to_df_map[season] = xls.parse(season)
+    for season in seasons:
+        data = sheet_to_df_map[season]
+        readFile(data)
+    print(len(games1))
+
+if __name__ == "__main__":
+    main ()    
