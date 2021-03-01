@@ -1,7 +1,7 @@
 import pandas as pd
 
 games1= []
-
+teams = []
 def readFile(data):
    
     listseasons = list(data)
@@ -11,6 +11,8 @@ def readFile(data):
         for column in listseasons:
                 data= data.fillna('x')
                 match = (data[column][i])
+                teams.append(column) if column not in teams else teams
+                
                 if match == 'x':
                     continue
                 else:
@@ -41,7 +43,8 @@ def main ():
     for season in seasons:
         data = sheet_to_df_map[season]
         readFile(data)
-    print(len(games1))
+        
+    print(teams)
 
 if __name__ == "__main__":
     main ()    
