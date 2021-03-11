@@ -1,0 +1,71 @@
+import math
+import numpy as np
+from scipy.stats import sem
+import itertools
+
+y = []
+
+
+
+
+
+def computeY(consultingTimes, numberAppointments, durationAppointment, dueTime):
+    schedule = np.arange(0,numberAppointments*durationAppointment, durationAppointment)
+    waitingTimes = np.zeros(numberAppointments+1)
+    startTime= 0
+    
+    for i in range(numberAppointments):
+        endTime = startTime + consultingTimes[i]
+        if endTime <= schedule[i]+durationAppointment:
+            startTime = schedule[i]+durationAppointment
+            waitingTimes[i+1] = 0
+        else:
+            startTime = startTime + consultingTimes[i]
+            waitingTimes[i+1]= startTime-(schedule[i]+durationAppointment)
+    
+    if endTime<=dueTime:
+        overTime=0
+    else:
+        overTime = endTime- dueTime
+    
+    waitingTimes[numberAppointments] = overTime
+    
+    output = sum(waitingTimes)
+    
+    y.append(output)
+    
+
+def infoY(y):
+    EST = np.mean(y)
+    SE = np.std(y)/math.sqrt(len(y))
+    threshold = SE/ EST
+    print(threshold)
+    confidenceInterval(EST, SE)
+    
+    return EST, SE
+
+def confidenceInterval(EST, SE):
+    confInterval = np.array([EST - 1.96* SE, EST + 1.96 * SE])
+    print(confInterval)
+    return confInterval
+
+def main():
+    m = 10
+    v = 3
+    dueTime= 240
+    mu = math.log((m*m)/math.sqrt(v+m*m))
+    sigma = math.sqrt(math.log((v/(m*m))+1))
+    numberAppointments = 18
+    teta = 1
+    durationAppointment = teta * 10
+    
+    for _ in itertools.repeat(None, 1000):
+        sample = np.random.lognormal(mu, sigma, numberAppointments)
+        computeY(sample, numberAppointments, durationAppointment, dueTime)
+   
+    print(y)
+    infoY(y)
+    
+if __name__ == "__main__":
+    main ()    
+
